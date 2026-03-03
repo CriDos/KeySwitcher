@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "KeySwitcher: Launch (Debug)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/KeySwitcher/bin/Debug/net10.0-windows/KeySwitcher.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}/KeySwitcher",
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    }
+  ]
+}

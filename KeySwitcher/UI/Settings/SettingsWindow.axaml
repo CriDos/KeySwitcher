@@ -1,0 +1,149 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="KeySwitcher.UI.Settings.SettingsWindow"
+        Title="KeySwitcher Settings"
+        Icon="/main.ico"
+        Width="540"
+        SizeToContent="Height"
+        MinHeight="390"
+        CanResize="False"
+        ShowInTaskbar="False"
+        RequestedThemeVariant="Dark"
+        FontFamily="Segoe UI"
+        WindowStartupLocation="CenterScreen">
+    <Window.Styles>
+        <Style Selector="Window">
+            <Setter Property="Background" Value="#1B2128" />
+            <Setter Property="Foreground" Value="#E5E7EB" />
+        </Style>
+        <Style Selector="Border.section">
+            <Setter Property="Background" Value="#232A33" />
+            <Setter Property="BorderBrush" Value="#3A4656" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+        <Style Selector="TextBlock.sectionTitle">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#F3F4F6" />
+        </Style>
+        <Style Selector="TextBlock.helpText">
+            <Setter Property="Foreground" Value="#A7B1BF" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#1E2630" />
+            <Setter Property="Foreground" Value="#F3F4F6" />
+            <Setter Property="BorderBrush" Value="#4B5A6E" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#1E2630" />
+            <Setter Property="Foreground" Value="#F3F4F6" />
+            <Setter Property="BorderBrush" Value="#4B5A6E" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#D4D9E1" />
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#2D3744" />
+            <Setter Property="Foreground" Value="#E5E7EB" />
+            <Setter Property="BorderBrush" Value="#4A5A70" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#3B82F6" />
+            <Setter Property="BorderBrush" Value="#60A5FA" />
+            <Setter Property="Foreground" Value="#F8FAFC" />
+        </Style>
+    </Window.Styles>
+
+    <Grid Margin="16" RowDefinitions="Auto,12,Auto,12,Auto">
+        <Border Grid.Row="0" Classes="section">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="sectionTitle"
+                           Text="Shortcut for switching keyboard language" />
+
+                <TextBox x:Name="HotkeyTextBox"
+                         Height="44"
+                         FontSize="18"
+                         IsReadOnly="True"
+                         HorizontalContentAlignment="Center"
+                         VerticalContentAlignment="Center"
+                         KeyDown="HotkeyTextBox_OnKeyDown" />
+
+                <TextBlock Classes="helpText"
+                           TextWrapping="Wrap"
+                           Text="Click the field above and press a new shortcut. Modifier-only combinations are supported too (for example Ctrl+Shift)." />
+
+                <Grid Margin="0,4,0,0"
+                      ColumnDefinitions="*,12,*"
+                      RowDefinitions="Auto,6,Auto,6,Auto">
+                    <TextBlock Grid.Row="0"
+                               Grid.Column="0"
+                               VerticalAlignment="Center"
+                               Text="Language A" />
+                    <TextBlock Grid.Row="0"
+                               Grid.Column="2"
+                               VerticalAlignment="Center"
+                               Text="Language B" />
+
+                    <ComboBox x:Name="FirstLanguageComboBox"
+                              Grid.Row="2"
+                              Grid.Column="0"
+                              MinWidth="220"
+                              SelectionChanged="FirstLanguageComboBox_OnSelectionChanged" />
+
+                    <ComboBox x:Name="SecondLanguageComboBox"
+                              Grid.Row="2"
+                              Grid.Column="2"
+                              MinWidth="220"
+                              SelectionChanged="SecondLanguageComboBox_OnSelectionChanged" />
+
+                    <TextBlock x:Name="LanguagePairStatusText"
+                               Grid.Row="4"
+                               Grid.ColumnSpan="3"
+                               Classes="helpText"
+                               TextWrapping="Wrap" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2" Classes="section">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="sectionTitle" Text="Startup, Input and Logs" />
+
+                <CheckBox x:Name="AutoStartCheckBox"
+                          Content="Autostart KeySwitcher with Windows" />
+
+                <CheckBox x:Name="PerWindowScopeCheckBox"
+                          Content="Use separate keyboard layout for each app window"
+                          IsCheckedChanged="PerWindowScopeCheckBox_OnIsCheckedChanged" />
+
+                <Button Width="160"
+                        HorizontalAlignment="Left"
+                        Content="Open Log Folder"
+                        Click="OpenLogFolderButton_OnClick" />
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="4"
+                BorderBrush="#3A4656"
+                BorderThickness="0,1,0,0">
+            <Grid Margin="0,10,0,0" ColumnDefinitions="Auto,*,Auto">
+                <TextBlock x:Name="VersionText"
+                           VerticalAlignment="Center"
+                           Classes="helpText" />
+
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="10">
+                    <Button Width="92" Content="Cancel" Click="CancelButton_OnClick" />
+                    <Button Classes="primary" Width="92" Content="Save" Click="SaveButton_OnClick" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

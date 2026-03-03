@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="20" y1="8" x2="492" y2="504" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="key" x1="56" y1="112" x2="456" y2="258" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#E8F1FF" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="496" height="496" rx="116" fill="url(#bg)"/>
+  <rect x="36" y="72" width="440" height="368" rx="62" fill="#0A2C78" fill-opacity="0.24"/>
+  <rect x="52" y="88" width="408" height="336" rx="52" fill="#F8FBFF" fill-opacity="0.14" stroke="#D8E8FF" stroke-opacity="0.50" stroke-width="2"/>
+
+  <rect x="78" y="120" width="168" height="124" rx="26" fill="url(#key)"/>
+  <rect x="266" y="120" width="168" height="124" rx="26" fill="url(#key)"/>
+
+  <text x="162" y="188" text-anchor="middle" dominant-baseline="middle" font-family="Segoe UI, Arial, sans-serif" font-size="72" font-weight="800" fill="#143B8C">EN</text>
+  <text x="350" y="188" text-anchor="middle" dominant-baseline="middle" font-family="Segoe UI, Arial, sans-serif" font-size="72" font-weight="800" fill="#143B8C">RU</text>
+
+  <path d="M100 272H354V248L414 290L354 332V308H100V272Z" fill="#F2F7FF"/>
+  <path d="M412 350H158V326L98 368L158 410V386H412V350Z" fill="#CFE1FF"/>
+</svg>

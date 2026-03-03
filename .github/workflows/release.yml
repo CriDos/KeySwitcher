@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (for example v1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish win-x64
+        run: >
+          dotnet publish KeySwitcher/KeySwitcher.csproj
+          -c Release
+          -r win-x64
+          --self-contained false
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -o dist/keyswitcher-win-x64
+
+      - name: Publish win-x64 Native AOT
+        run: >
+          dotnet publish KeySwitcher/KeySwitcher.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishAot=true
+          -p:PublishTrimmed=true
+          -p:TrimMode=partial
+          -p:InvariantGlobalization=false
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -o dist/keyswitcher-win-x64-aot
+
+      - name: Create zip archives
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Compress-Archive -Path "dist/keyswitcher-win-x64/*" -DestinationPath "out/keyswitcher-win-x64.zip" -Force
+          Compress-Archive -Path "dist/keyswitcher-win-x64-aot/*" -DestinationPath "out/keyswitcher-win-x64-aot.zip" -Force
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages
+          path: out/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Resolve release metadata
+        id: meta
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $rawTag = "${{ github.event.inputs.tag }}"
+          } else {
+            $rawTag = "${{ github.ref_name }}"
+          }
+
+          $tag = $rawTag.Trim()
+          if ($tag.StartsWith("refs/tags/")) {
+            $tag = $tag.Substring("refs/tags/".Length)
+          }
+
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw "Release tag is empty."
+          }
+
+          if (-not $tag.StartsWith("v")) {
+            if ($tag -match "^\d+(\.\d+){1,3}$") {
+              $tag = "v$tag"
+            } else {
+              throw "Tag must be like v1.0.0 or 1.0.0."
+            }
+          }
+
+          Write-Host "Resolved release tag: $tag"
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "name=KeySwitcher $tag" >> $env:GITHUB_OUTPUT
+
+      - name: Publish GitHub Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          files: |
+            out/keyswitcher-win-x64.zip
+            out/keyswitcher-win-x64-aot.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true
