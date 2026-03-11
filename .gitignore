@@ -38,3 +38,4 @@ Desktop.ini
 
 # Local app/runtime artifacts
 appsettings.Development.json
+artifacts/
