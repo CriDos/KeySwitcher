@@ -11,6 +11,7 @@ internal sealed class TrayIconService : IDisposable
     private readonly Dictionary<string, WindowIcon> _icons = new(StringComparer.OrdinalIgnoreCase);
     private readonly NativeMenuItem _languageItem;
     private readonly NativeMenuItem _settingsItem;
+    private readonly NativeMenuItem _restartAsAdministratorItem;
     private readonly NativeMenuItem _exitItem;
 
     private string _currentLanguage = "EN";
@@ -18,6 +19,8 @@ internal sealed class TrayIconService : IDisposable
     public event EventHandler? SettingsRequested;
 
     public event EventHandler? LanguageToggleRequested;
+
+    public event EventHandler? RestartAsAdministratorRequested;
 
     public event EventHandler? ExitRequested;
 
@@ -31,12 +34,22 @@ internal sealed class TrayIconService : IDisposable
         _settingsItem = new NativeMenuItem("Settings");
         _settingsItem.Click += SettingsItem_OnClick;
 
+        _restartAsAdministratorItem = new NativeMenuItem("Restart As Admin");
+        _restartAsAdministratorItem.Click += RestartAsAdministratorItem_OnClick;
+
         _exitItem = new NativeMenuItem("Exit");
         _exitItem.Click += ExitItem_OnClick;
 
         var menu = new NativeMenu
         {
-            Items = { _languageItem, new NativeMenuItemSeparator(), _settingsItem, _exitItem },
+            Items =
+            {
+                _languageItem,
+                new NativeMenuItemSeparator(),
+                _settingsItem,
+                _restartAsAdministratorItem,
+                _exitItem,
+            },
         };
 
         _trayIcon = new TrayIcon
@@ -71,6 +84,7 @@ internal sealed class TrayIconService : IDisposable
     {
         _trayIcon.Clicked -= TrayIcon_OnClicked;
         _settingsItem.Click -= SettingsItem_OnClick;
+        _restartAsAdministratorItem.Click -= RestartAsAdministratorItem_OnClick;
         _exitItem.Click -= ExitItem_OnClick;
 
         _trayIcon.IsVisible = false;
@@ -97,6 +111,11 @@ internal sealed class TrayIconService : IDisposable
             () => ExitRequested?.Invoke(this, EventArgs.Empty),
             DispatcherPriority.Background
         );
+    }
+
+    private void RestartAsAdministratorItem_OnClick(object? sender, EventArgs e)
+    {
+        RaiseDeferred(RestartAsAdministratorRequested);
     }
 
     private void RaiseDeferred(EventHandler? handler)

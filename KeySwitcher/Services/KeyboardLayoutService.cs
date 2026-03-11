@@ -131,22 +131,12 @@ internal sealed partial class KeyboardLayoutService
 
     public string GetCurrentLanguageLabel()
     {
-        var foregroundWindow = GetForegroundWindow();
-        TrackUsableWindow(foregroundWindow);
-
-        var targetWindow = ResolvePrimaryUsableWindow(foregroundWindow);
-        var primaryLanguageId = GetPrimaryLanguageIdForWindow(targetWindow);
-        return GetLanguageLabel(primaryLanguageId);
+        return GetLanguageLabelForForeground(allowLastUsableWindowFallback: false);
     }
 
     public string GetGlobalLanguageLabel()
     {
-        var foregroundWindow = GetForegroundWindow();
-        TrackUsableWindow(foregroundWindow);
-
-        var targetWindow = ResolvePrimaryUsableWindow(foregroundWindow);
-        var primaryLanguageId = GetPrimaryLanguageIdForWindow(targetWindow);
-        return GetLanguageLabel(primaryLanguageId);
+        return GetLanguageLabelForForeground(allowLastUsableWindowFallback: false);
     }
 
     public bool ToggleLanguage()
@@ -163,7 +153,10 @@ internal sealed partial class KeyboardLayoutService
             return ToggleLanguageGlobal();
         }
 
-        var targetWindow = ResolvePrimaryUsableWindow(foregroundWindow);
+        var targetWindow = ResolveTargetWindow(
+            foregroundWindow,
+            allowLastUsableWindowFallback: true
+        );
         var currentPrimaryLanguageId = GetPrimaryLanguageIdForWindow(targetWindow);
         var targetLayout = GetTargetLayout(currentPrimaryLanguageId);
 
@@ -244,7 +237,10 @@ internal sealed partial class KeyboardLayoutService
         var foregroundWindow = GetForegroundWindow();
         TrackUsableWindow(foregroundWindow);
 
-        var targetWindow = ResolvePrimaryUsableWindow(foregroundWindow);
+        var targetWindow = ResolveTargetWindow(
+            foregroundWindow,
+            allowLastUsableWindowFallback: false
+        );
         var currentPrimaryLanguageId = GetPrimaryLanguageIdForWindow(targetWindow);
         var targetLayout = GetTargetLayout(currentPrimaryLanguageId);
 
@@ -285,14 +281,29 @@ internal sealed partial class KeyboardLayoutService
         }
     }
 
-    private IntPtr ResolvePrimaryUsableWindow(IntPtr foregroundWindow)
+    private string GetLanguageLabelForForeground(bool allowLastUsableWindowFallback)
     {
+        var foregroundWindow = GetForegroundWindow();
+        TrackUsableWindow(foregroundWindow);
+
+        var targetWindow = ResolveTargetWindow(foregroundWindow, allowLastUsableWindowFallback);
+        var primaryLanguageId = GetPrimaryLanguageIdForWindow(targetWindow);
+        return GetLanguageLabel(primaryLanguageId);
+    }
+
+    private IntPtr ResolveTargetWindow(IntPtr foregroundWindow, bool allowLastUsableWindowFallback)
+    {
+        if (TryResolveGuiThreadWindow(foregroundWindow, out var guiThreadWindow))
+        {
+            return guiThreadWindow;
+        }
+
         if (IsUsableWindow(foregroundWindow))
         {
             return foregroundWindow;
         }
 
-        if (IsUsableWindow(_lastUsableWindow))
+        if (allowLastUsableWindowFallback && IsUsableWindow(_lastUsableWindow))
         {
             return _lastUsableWindow;
         }
@@ -316,6 +327,46 @@ internal sealed partial class KeyboardLayoutService
         return IntPtr.Zero;
     }
 
+    private static bool TryResolveGuiThreadWindow(IntPtr referenceWindow, out IntPtr resolvedWindow)
+    {
+        resolvedWindow = IntPtr.Zero;
+        if (referenceWindow == IntPtr.Zero || !IsWindow(referenceWindow))
+        {
+            return false;
+        }
+
+        var threadId = GetWindowThreadProcessId(referenceWindow, out _);
+        if (threadId == 0)
+        {
+            return false;
+        }
+
+        var guiThreadInfo = GuiThreadInfo.Create();
+        if (!GetGUIThreadInfo(threadId, ref guiThreadInfo))
+        {
+            return false;
+        }
+
+        return TryResolveTargetCandidate(guiThreadInfo.hwndFocus, out resolvedWindow)
+            || TryResolveTargetCandidate(guiThreadInfo.hwndActive, out resolvedWindow)
+            || TryResolveTargetCandidate(guiThreadInfo.hwndMenuOwner, out resolvedWindow)
+            || TryResolveTargetCandidate(guiThreadInfo.hwndMoveSize, out resolvedWindow)
+            || TryResolveTargetCandidate(guiThreadInfo.hwndCaret, out resolvedWindow)
+            || TryResolveTargetCandidate(referenceWindow, out resolvedWindow);
+    }
+
+    private static bool TryResolveTargetCandidate(IntPtr candidateWindow, out IntPtr resolvedWindow)
+    {
+        resolvedWindow = IntPtr.Zero;
+        if (!IsKeyboardTargetWindow(candidateWindow))
+        {
+            return false;
+        }
+
+        resolvedWindow = candidateWindow;
+        return true;
+    }
+
     private static bool VerifyLanguage(
         ushort expectedPrimaryLanguageId,
         Func<ushort> languageProvider
@@ -334,15 +385,15 @@ internal sealed partial class KeyboardLayoutService
         return false;
     }
 
-    private static IntPtr ResolveVerificationWindow(IntPtr preferredWindow)
+    private IntPtr ResolveVerificationWindow(IntPtr preferredWindow)
     {
-        if (preferredWindow != IntPtr.Zero && IsWindow(preferredWindow))
+        if (IsKeyboardTargetWindow(preferredWindow))
         {
             return preferredWindow;
         }
 
         var foreground = GetForegroundWindow();
-        return foreground != IntPtr.Zero && IsWindow(foreground) ? foreground : IntPtr.Zero;
+        return ResolveTargetWindow(foreground, allowLastUsableWindowFallback: false);
     }
 
     private ushort GetPrimaryLanguageIdForWindow(IntPtr windowHandle)
@@ -370,19 +421,24 @@ internal sealed partial class KeyboardLayoutService
 
     private bool IsUsableWindow(IntPtr windowHandle)
     {
-        if (windowHandle == IntPtr.Zero || !IsWindow(windowHandle))
-        {
-            return false;
-        }
-
-        _ = GetWindowThreadProcessId(windowHandle, out var processId);
-        if (processId == (uint)Environment.ProcessId)
+        if (!IsKeyboardTargetWindow(windowHandle))
         {
             return false;
         }
 
         var className = GetWindowClassName(windowHandle);
         return !IgnoredWindowClasses.Contains(className);
+    }
+
+    private static bool IsKeyboardTargetWindow(IntPtr windowHandle)
+    {
+        if (windowHandle == IntPtr.Zero || !IsWindow(windowHandle))
+        {
+            return false;
+        }
+
+        _ = GetWindowThreadProcessId(windowHandle, out var processId);
+        return processId != (uint)Environment.ProcessId;
     }
 
     private static bool ApplyLayout(string layoutId, IntPtr targetWindow)
@@ -604,6 +660,10 @@ internal sealed partial class KeyboardLayoutService
 
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetGUIThreadInfo(uint idThread, ref GuiThreadInfo lpgui);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool IsWindow(IntPtr hWnd);
 
     [DllImport(
@@ -624,6 +684,34 @@ internal sealed partial class KeyboardLayoutService
         uint uTimeout,
         out UIntPtr lpdwResult
     );
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct GuiThreadInfo
+    {
+        public uint cbSize;
+        public uint flags;
+        public IntPtr hwndActive;
+        public IntPtr hwndFocus;
+        public IntPtr hwndCapture;
+        public IntPtr hwndMenuOwner;
+        public IntPtr hwndMoveSize;
+        public IntPtr hwndCaret;
+        public NativeRect rcCaret;
+
+        public static GuiThreadInfo Create()
+        {
+            return new GuiThreadInfo { cbSize = (uint)Marshal.SizeOf<GuiThreadInfo>() };
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
 }
 
 internal readonly record struct KeyboardLayoutOption(

@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using KeySwitcher.Infra;
@@ -40,6 +42,7 @@ internal sealed class AppController : IDisposable
         _hotkeyService.HotkeyPressed += HotkeyService_OnHotkeyPressed;
         _trayIcon.LanguageToggleRequested += TrayIcon_OnLanguageToggleRequested;
         _trayIcon.SettingsRequested += TrayIcon_OnSettingsRequested;
+        _trayIcon.RestartAsAdministratorRequested += TrayIcon_OnRestartAsAdministratorRequested;
         _trayIcon.ExitRequested += TrayIcon_OnExitRequested;
         _indicatorTimer.Tick += IndicatorTimer_OnTick;
     }
@@ -119,6 +122,7 @@ internal sealed class AppController : IDisposable
         _hotkeyService.HotkeyPressed -= HotkeyService_OnHotkeyPressed;
         _trayIcon.LanguageToggleRequested -= TrayIcon_OnLanguageToggleRequested;
         _trayIcon.SettingsRequested -= TrayIcon_OnSettingsRequested;
+        _trayIcon.RestartAsAdministratorRequested -= TrayIcon_OnRestartAsAdministratorRequested;
         _trayIcon.ExitRequested -= TrayIcon_OnExitRequested;
 
         if (_settingsWindow is not null)
@@ -141,6 +145,11 @@ internal sealed class AppController : IDisposable
     private void TrayIcon_OnLanguageToggleRequested(object? sender, EventArgs e)
     {
         ToggleLanguageAndUpdateIndicator("tray-click", global: true);
+    }
+
+    private void TrayIcon_OnRestartAsAdministratorRequested(object? sender, EventArgs e)
+    {
+        RestartAsAdministrator();
     }
 
     private void TrayIcon_OnExitRequested(object? sender, EventArgs e)
@@ -412,6 +421,43 @@ internal sealed class AppController : IDisposable
                     source
                 );
             }
+        }
+    }
+
+    private void RestartAsAdministrator()
+    {
+        var processPath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(processPath))
+        {
+            _trayIcon.ShowInfo("Cannot restart as administrator.");
+            Log.Warning("Restart as administrator failed: process path is unavailable.");
+            return;
+        }
+
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = processPath,
+                Arguments = "--wait-for-mutex",
+                UseShellExecute = true,
+                Verb = "runas",
+                WorkingDirectory = AppContext.BaseDirectory,
+            };
+
+            _ = Process.Start(startInfo);
+            Log.Information("Restart as administrator requested.");
+            _desktopLifetime.Shutdown();
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+        {
+            _trayIcon.ShowInfo("Administrator restart canceled.");
+            Log.Information("Restart as administrator canceled by user.");
+        }
+        catch (Exception ex)
+        {
+            _trayIcon.ShowInfo("Administrator restart failed.");
+            Log.Warning(ex, "Restart as administrator failed.");
         }
     }
 
